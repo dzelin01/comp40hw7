@@ -116,7 +116,7 @@ int decode(mem_t *memory, uint32_t word, uint32_t *registers)
                 case ADD :
                         ADDa(ra, rb, rc, registers);
                         break;
-                case MUL :
+                case MULT :
                         MULTa(ra, rb, rc, registers);
                         break;
                 case DIV :

@@ -39,7 +39,7 @@ done
 # using one case statement per executable binary
 case $link in
   all|um) gcc $FLAGS -o um um.o memory.o bitpack.o instructions.o emulator.o \
-                  -lcii40-O2 $LIBS $LFLAGS 
+                  -lcii40-O1 $LIBS $LFLAGS 
               linked=yes ;;
 esac
 

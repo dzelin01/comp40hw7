@@ -30,7 +30,7 @@ void SLOADa(int A, int B, int C, mem_t *memory, uint32_t *registers)
 /*
  * Purpose: Stores the contents of register C into segment A with an offset of B
  */
-void SSTOREa(int A, int B, int C, mem_t *memory, uint32_t *registers)
+void SSTORE(int A, int B, int C, mem_t *memory, uint32_t *registers)
 {
         word_store(memory, registers[A], registers[B], &(registers[C]));
 }
@@ -38,7 +38,7 @@ void SSTOREa(int A, int B, int C, mem_t *memory, uint32_t *registers)
 /*
  * Purpose: Stores sum of the contents of registers B and C in register A
  */
-void ADDa(int A, int B, int C, uint32_t *registers)
+void ADD(int A, int B, int C, uint32_t *registers)
 {
         registers[A] = registers[B] + registers[C];
 }
@@ -46,7 +46,7 @@ void ADDa(int A, int B, int C, uint32_t *registers)
 /*
  * Purpose: Stores product of the contents of registers B and C in register A
  */
-void MULTa(int A, int B, int C, uint32_t *registers)
+void MULT(int A, int B, int C, uint32_t *registers)
 {
         registers[A] = registers[B] * registers[C];
 }
@@ -55,7 +55,7 @@ void MULTa(int A, int B, int C, uint32_t *registers)
  * Purpose: Stores the contents in register B divided by the contents of
  *          register C in register A
  */
-void DIVa(int A, int B, int C, uint32_t *registers)
+void DIV(int A, int B, int C, uint32_t *registers)
 {
         registers[A] = registers[B] / registers[C];
 }
@@ -63,7 +63,7 @@ void DIVa(int A, int B, int C, uint32_t *registers)
 /*
  * Purpose: Stores contents of B NAND C in register A
  */
-void NANDa(int A, int B, int C, uint32_t *registers)
+void NAND(int A, int B, int C, uint32_t *registers)
 {
         registers[A] = ~(registers[B] & registers[C]);
 }
@@ -71,7 +71,7 @@ void NANDa(int A, int B, int C, uint32_t *registers)
 /*
  * Purpose: Halts the program and frees memory
  */
-void HALTa(mem_t *memory)
+void HALT(mem_t *memory)
 {
         memory_free(memory);
 }
@@ -79,7 +79,7 @@ void HALTa(mem_t *memory)
 /*
  * Purpose: Calls necessary function to map memory
  */
-void MAPa(int B, int C, mem_t *memory, uint32_t *registers)
+void MAP(int B, int C, mem_t *memory, uint32_t *registers)
 {
         registers[B] = segment_map(memory, registers[C]);
 }
@@ -87,7 +87,7 @@ void MAPa(int B, int C, mem_t *memory, uint32_t *registers)
 /*
  * Purpose: Calls necessary function to unmap memory
  */
-void UNMAPa(int C, mem_t *memory, uint32_t *registers)
+void UNMAP(int C, mem_t *memory, uint32_t *registers)
 {
         segment_unmap(memory, registers[C]);
 }
@@ -96,7 +96,7 @@ void UNMAPa(int C, mem_t *memory, uint32_t *registers)
  * Purpose: Prints to standard output the ascii value corresponding to the
  *          contents of register C
  */
-void OUTPUTa(int C, uint32_t *registers)
+void OUTPUT(int C, uint32_t *registers)
 {
         assert((int)registers[C] >= 0 && (int)registers[C] <= 255);
         printf("%c", registers[C]);
@@ -105,7 +105,7 @@ void OUTPUTa(int C, uint32_t *registers)
 /*
  * Purpose: Stores the input from standard input into register C
  */
-void INPUTa(int C, uint32_t *registers)
+void INPUT(int C, uint32_t *registers)
 {
         registers[C] = (uint32_t) getc(stdin);
 }
@@ -114,7 +114,7 @@ void INPUTa(int C, uint32_t *registers)
  * Purpose: Handles loops and jumps and returns the function pointer which is 
  *          stored in register C
  */
-uint32_t LOADPa(int B, int C, mem_t *memory, uint32_t *registers)
+uint32_t LOADP(int B, int C, mem_t *memory, uint32_t *registers)
 {
         if (registers[B] != 0) {
                 UArray_T duplicate = segment_load(memory, registers[B]);
@@ -126,7 +126,7 @@ uint32_t LOADPa(int B, int C, mem_t *memory, uint32_t *registers)
 /*
  * Purpose: Loads the given value in register A
  */
-void LOADVa(int A, int val, uint32_t *registers)
+void LOADV(int A, int val, uint32_t *registers)
 {
         registers[A] = (uint32_t) val;
 }
