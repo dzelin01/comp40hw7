@@ -13,9 +13,7 @@
 #include "inttypes.h"
 
 static mem_t boot(FILE *fp, mem_t memory, uint32_t file_length);
-static void fetch(mem_t *memory, uint32_t *registers);
-static int decode(mem_t *memory, uint32_t word, uint32_t *registers);
-
+static inline void fetch(mem_t *memory, uint32_t *registers);
 /*
  * Purpose: Serves as the main function for the emulator module and is 
  *          responsible for calling the functions to emulate the UM
@@ -39,15 +37,16 @@ static mem_t boot(FILE *fp, mem_t memory, uint32_t file_length)
         
         /* the while loop will only end when the halt operation is used */
         for (int i = 0; i < (int)(file_length / 4) ; i++) {
-                uint64_t word;
+                uint32_t word = 0;
                 /* getc reads in word 8 bytes at a time from input */
-                uint32_t val = getc(fp);
-                if ((int)val == EOF) break;
+                uint32_t left = getc(fp);
+                if ((int)left == EOF) break;
                 
-                word = Bitpack_newu(word, 8, 24, (uint64_t) val);
-                word = Bitpack_newu(word, 8, 16, (uint64_t) getc(fp));
-                word = Bitpack_newu(word, 8, 8, (uint64_t) getc(fp));
-                word = Bitpack_newu(word, 8, 0, (uint64_t) getc(fp));
+                unsigned midleft = getc(fp);
+                unsigned midright = getc(fp);
+                unsigned right = getc(fp);
+                
+                word = (left << 24 | midleft << 16 | midright << 8 | right);
                 uint32_t *value = malloc(sizeof(uint32_t));
                 *value = word;
                 word_store(&memory, 0, i, value); 
@@ -63,96 +62,95 @@ static mem_t boot(FILE *fp, mem_t memory, uint32_t file_length)
  *          function that determines the opcode and performs the necessary
  *          actions
  */
-static void fetch(mem_t *memory, uint32_t *registers)
+static void fetch(mem_t *memory, uint32_t *reg)
 {
         uint32_t program_counter = 0;
+        uint32_t opcode, a, b, c, val;
+        //int update_counter;
+        
         while (1) {
-                int update_counter;
-                update_counter = decode(memory, word_load(memory, 0,
-                                        program_counter), registers);
-                if (update_counter == -1)
-                        program_counter++;
-                /* the update counter will only be -2 if halt is called */
-                else if (update_counter == -2)
-                        return;
-                else
-                        /* if load program is called, the program */
-                        /*counter will be given a new value */
-                        program_counter = (uint32_t) update_counter;
+                uint32_t word =  word_load(memory, 0, program_counter);
+                
+                /* unpacks the 32 bit instruction */
+                opcode = ((word >> 28) & 0xF);
+                if ((int) opcode != 13) {
+                        c = (word & 0x7);
+                        b = ((word >> 3) & 0x7);
+                        a = ((word >> 6) & 0x7);
+                } else {
+                        a = ((word >> 25) & 0x7);
+                        val = ((word << 0x7) >> 0x7);
+                }     
+                
+                /* calls a function according to the unpacked opcode */
+                switch (opcode) {
+                        case CMOV :
+                                if (reg[c] != 0) reg[a] = reg[b];
+                                program_counter++;
+                                break;
+                        case SLOAD :
+                                reg[a] = word_load(memory, reg[b], reg[c]);
+                                program_counter++;
+                                break;
+                        case SSTORE :
+                                word_store(memory, reg[a], reg[b], &(reg[c]));
+                                program_counter++;
+                                break;
+                        case ADD :
+                                reg[a] = reg[b] + reg[c]; 
+                                program_counter++;
+                                break;
+                        case MUL :
+                                reg[a] = reg[b] * reg[c];
+                                program_counter++;
+                                break;
+                        case DIV :
+                                reg[a] = reg[b] / reg[c];
+                                program_counter++;
+                                break;
+                        case NAND :
+                                reg[a] = ~(reg[b] & reg[c]);
+                                program_counter++;
+                                break;
+                        case HALT :
+                                memory_free(memory); 
+                                return;
+                                break;
+                        /* MAP function */
+                        case ACTIVATE :
+                                reg[b] = segment_map(memory, reg[c]);
+                                program_counter++;
+                                break;
+                        /* UNMAP function */
+                        case INACTIVATE :
+                                segment_unmap(memory, reg[c]);
+                                program_counter++;
+                                break;
+                        /* OUTPUT function */
+                        case OUT :
+                                assert((int)reg[c] >= 0 && (int)reg[c] <= 255);
+                                printf("%c", reg[c]);
+                                program_counter++;
+                                break;
+                        /* INPUT function */
+                        case IN :
+                                reg[c] = (uint32_t) getc(stdin);
+                                program_counter++;
+                                break;
+                        case LOADP :
+                                if (reg[b] != 0) {
+                                        UArray_T dup = segment_load(memory,
+                                                                    reg[b]);
+                                        segment_store(memory, 0, dup);
+                                }
+                                program_counter = reg[c];
+                                break;
+                        /* LOAD VALUE function */
+                        case LV :
+                                reg[a] = (uint32_t) val;
+                                program_counter++;
+                                break;
+                }
         }
 }
 
-/*
- * Purpose: Uses bitpack to extract the opcode and necessary registers, also
- *          calls the necessary functions corresponding to the opcodes
- */
-int decode(mem_t *memory, uint32_t word, uint32_t *registers)
-{
-        uint32_t opcode, ra, rb, rc, val;
-        word = (uint64_t) word;
-        
-        /* unpacks the 32 bit instruction */
-        opcode = Bitpack_getu(word, 4, 28);
-        if ((int) opcode != 13) {
-                ra = (uint32_t) Bitpack_getu(word, 3, 6);
-                rb = (uint32_t) Bitpack_getu(word, 3, 3);
-                rc = (uint32_t) Bitpack_getu(word, 3, 0);
-        } else {
-                ra = (uint32_t) Bitpack_getu(word, 3, 25);
-                val = (uint32_t) Bitpack_getu(word, 25, 0);
-        }
-              
-        /* calls a function according to the unpacked opcode */
-        switch (opcode) {
-                case CMOV :
-                        CMOVa(ra, rb, rc, registers);
-                        break;
-                case SLOAD :
-                        SLOADa(ra, rb, rc, memory, registers);
-                        break;
-                case SSTORE :
-                        SSTOREa(ra, rb, rc, memory, registers);
-                        break;
-                case ADD :
-                        ADDa(ra, rb, rc, registers);
-                        break;
-                case MUL :
-                        MULTa(ra, rb, rc, registers);
-                        break;
-                case DIV :
-                        DIVa(ra, rb, rc, registers);
-                        break;
-                case NAND :
-                        NANDa(ra, rb, rc, registers);
-                        break;
-                case HALT :
-                        HALTa(memory);
-                        return -2;
-                        break;
-                /* MAP function */
-                case ACTIVATE :
-                        MAPa(rb, rc, memory, registers);
-                        break;
-                /* UNMAP function */
-                case INACTIVATE :
-                        UNMAPa(rc, memory, registers);
-                        break;
-                /* OUTPUT function */
-                case OUT :
-                        OUTPUTa(rc, registers);
-                        break;
-                /* INPUT function */
-                case IN :
-                        INPUTa(rc, registers);
-                        break;
-                case LOADP :
-                        return LOADPa(rb, rc, memory, registers);
-                        break;
-                /* LOAD VALUE function */
-                case LV :
-                        LOADVa(ra, val, registers);
-                        break;
-        }
-               
-        return -1;
-}

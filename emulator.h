@@ -13,8 +13,7 @@
 #include "assert.h"
 #include "uarray.h"
 #include "seq.h"
-#include "bitpack.h"
-#include "instructions.h"
+#include "memory.h"
 #include "um-opcode.h"
 
 extern void emulate(FILE *fp, uint32_t file_length);
